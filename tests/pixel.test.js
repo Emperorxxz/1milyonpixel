@@ -1,48 +1,65 @@
 const app = require('../server/server');
 const request = require('supertest');
-const Pixel = require('../server/models/Pixel');
+const DrawPixel = require('../server/models/DrawPixel');
 const mongoose = require('mongoose');
 
-describe('Pixel API', () => {
-  let server;
-  let testPixelId;
+const testDrawPixel = {
+  x: 10,
+  y: 10,
+  color: '#ff0000'
+};
 
+describe('Draw API', () => {
   beforeAll(async () => {
-    // Test veritabanına bağlan
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
-    
-    // Test verisini oluştur
-    const pixel = await Pixel.create({
-      coordinates: { x: 10, y: 10 },
-      owner: { email: 'test@example.com' },
-      content: { url: 'https://example.com' }
-    });
-    testPixelId = pixel._id;
+    try {
+      await mongoose.connect(process.env.MONGODB_URI_TEST);
+    } catch (err) {
+      console.error('MongoDB bağlantı hatası:', err);
+    }
   });
 
-  afterAll(async () => {
-    // Bağlantıları temizle
-    await Pixel.deleteMany();
-    await mongoose.disconnect();
+  beforeEach(async () => {
+    await DrawPixel.deleteMany();
   });
 
-  test('GET /api/pixels - Pikselleri listeleme', async () => {
-    const res = await request(app).get('/api/pixels');
+  test('POST /api/draw - Yeni pixel çizme', async () => {
+    const res = await request(app)
+      .post('/api/draw')
+      .send(testDrawPixel);
+
     expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('_id');
+    expect(res.body.color).toBe('#ff0000');
+  });
+
+  test('GET /api/draw - Tüm pikselleri getir', async () => {
+    // Önce bir pixel oluştur
+    await request(app)
+      .post('/api/draw')
+      .send(testDrawPixel);
+
+    const res = await request(app)
+      .get('/api/draw');
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBe(1);
   });
 
-  test('POST /api/pixels - Yeni piksel oluşturma', async () => {
+  test('DELETE /api/draw - Tuvali temizle', async () => {
+    // Önce bir pixel oluştur
+    await request(app)
+      .post('/api/draw')
+      .send(testDrawPixel);
+
     const res = await request(app)
-      .post('/api/pixels')
-      .send({
-        coordinates: { x: 20, y: 20 },
-        owner: { email: 'test2@example.com' },
-        content: { url: 'https://example2.com' }
-      });
-    expect(res.status).toBe(201);
+      .delete('/api/draw');
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Tuval temizlendi');
+  });
+
+  afterAll(async () => {
+    await mongoose.disconnect();
   });
 });

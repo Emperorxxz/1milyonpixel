@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Paneli - 1 Milyon Pixel</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .admin-header {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .admin-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .admin-tab {
+            padding: 12px 24px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .admin-tab.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .admin-content {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .admin-section {
+            display: none;
+        }
+        
+        .admin-section.active {
+            display: block;
+        }
+        
+        .blocks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .blocks-table th,
+        .blocks-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .blocks-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-approve {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 2rem;
+        }
+        
+        .stat-card p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>🔧 Admin Paneli</h1>
+            <p>1 Milyon Pixel Yönetim Sistemi</p>
+        </div>
+        
+        <div class="admin-tabs">
+            <button class="admin-tab active" onclick="showTab('dashboard')">📊 Dashboard</button>
+            <button class="admin-tab" onclick="showTab('blocks')">🎯 Blok Yönetimi</button>
+            <button class="admin-tab" onclick="showTab('users')">👥 Kullanıcılar</button>
+            <button class="admin-tab" onclick="showTab('settings')">⚙️ Ayarlar</button>
+        </div>
+        
+        <div class="admin-content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="admin-section active">
+                <h2>📊 Genel İstatistikler</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats will be loaded here -->
+                </div>
+                
+                <h3>📈 Son Aktiviteler</h3>
+                <div id="recentActivity">
+                    <!-- Recent activity will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Blocks Management Section -->
+            <div id="blocks" class="admin-section">
+                <h2>🎯 Blok Yönetimi</h2>
+                
+                <div class="filters">
+                    <input type="text" class="search-box" id="blockSearch" placeholder="Blok ara (başlık, email, URL...)">
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">Tüm Durumlar</option>
+                        <option value="pending">Onay Bekleyen</option>
+                        <option value="active">Aktif</option>
+                        <option value="rejected">Reddedilen</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadBlocks()">🔄 Yenile</button>
+                </div>
+                
+                <table class="blocks-table" id="blocksTable">
+                    <thead>
+                        <tr>
+                            <th>Pozisyon</th>
+                            <th>Başlık</th>
+                            <th>Sahip</th>
+                            <th>URL</th>
+                            <th>Durum</th>
+                            <th>Fiyat</th>
+                            <th>Tarih</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocksTableBody">
+                        <!-- Blocks will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Users Section -->
+            <div id="users" class="admin-section">
+                <h2>👥 Kullanıcı Yönetimi</h2>
+                <div id="usersContent">
+                    <!-- Users content will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Settings Section -->
+            <div id="settings" class="admin-section">
+                <h2>⚙️ Sistem Ayarları</h2>
+                <div class="form-section">
+                    <h3>Genel Ayarlar</h3>
+                    <div class="form-group">
+                        <label>Blok Fiyatı (TRY)</label>
+                        <input type="number" value="300" min="1" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Otomatik Onay</label>
+                        <select>
+                            <option value="false">Manuel Onay</option>
+                            <option value="true">Otomatik Onay</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Maksimum Dosya Boyutu (MB)</label>
+                        <input type="number" value="2" min="1" max="10">
+                    </div>
+                    <button class="btn btn-primary">💾 Kaydet</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="loading-spinner"></div>
+            <p>Yükleniyor...</p>
+        </div>
+    </div>
+    
+    <script src="admin.js"></script>
+</body>
+</html>
