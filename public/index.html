@@ -9,30 +9,13 @@
 <body>
   <div class="container">
     <h1>1 Milyon Pixel Projesi</h1>
-    <p>Pikselleri seçin (10x10 bloklar halinde), reklamınızı yerleştirin!</p>
-    
     <div class="canvas-container">
       <canvas id="pixelCanvas" width="1000" height="1000"></canvas>
     </div>
-
-    <div id="selectionInfo">
-      Seçili Piksel: <span id="selectedPixels">0</span> | Toplam: <span id="totalPrice">0</span> TL
-    </div>
-
     <div id="purchaseModal" class="modal">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Piksel Satın Al</h2>
-        <form id="pixelForm">
-          <input type="text" id="url" placeholder="Website URL" required>
-          <input type="text" id="title" placeholder="Başlık" required>
-          <input type="file" id="image" accept="image/*">
-          <button type="submit">Rezerve Et</button>
-        </form>
-      </div>
+      <!-- Modal içeriği -->
     </div>
   </div>
-
   <script src="/script.js"></script>
 </body>
 </html>

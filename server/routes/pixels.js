@@ -1,35 +1,39 @@
 const express = require('express');
 const Pixel = require('../models/Pixel');
-const validate = require('../middleware/validatePixel');
 const router = express.Router();
 
-// Piksel satın alma
-router.post('/', validate, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    // Çakışma kontrolü
+    // Koordinat çakışması kontrolü
     const existingPixel = await Pixel.findOne({
       'coordinates.x': req.body.coordinates.x,
       'coordinates.y': req.body.coordinates.y
     });
     
     if (existingPixel) {
-      return res.status(409).json({ error: 'Bu koordinatlar zaten dolu!' });
+      return res.status(400).json({ 
+        error: 'Bu koordinatlar zaten kullanımda' 
+      });
     }
 
     const pixel = new Pixel(req.body);
     await pixel.save();
     res.status(201).json(pixel);
   } catch (err) {
-    res.status(500).json({ error: 'Sunucu hatası' });
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Koordinat çakışması' });
+    }
+    res.status(400).json({ error: err.message });
   }
 });
 
-// Tüm pikselleri getir (optimize edilmiş)
 router.get('/', async (req, res) => {
-  const pixels = await Pixel.find()
-    .select('coordinates size content.url')
-    .lean();
-  res.json(pixels);
+  try {
+    const pixels = await Pixel.find().lean();
+    res.json(pixels);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
