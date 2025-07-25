@@ -23,14 +23,21 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// MongoDB Connection (Tekil bağlantı)
+// MongoDB Connection (Tekil bağlantı) - Opsiyonel test için
 if (!mongoose.connection.readyState) {
-  mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  })
-  .then(() => console.log('MongoDB bağlantısı başarılı'))
-  .catch(err => console.error('MongoDB bağlantı hatası:', err));
+  if (process.env.MONGODB_URI) {
+    mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    })
+    .then(() => console.log('MongoDB bağlantısı başarılı'))
+    .catch(err => {
+      console.error('MongoDB bağlantı hatası:', err);
+      console.log('Mock data ile devam ediliyor...');
+    });
+  } else {
+    console.log('MongoDB URI bulunamadı, mock data ile çalışıyor...');
+  }
 }
 
 // Sadece doğrudan çalıştırıldığında sunucuyu başlat

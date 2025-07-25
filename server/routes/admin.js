@@ -1,40 +1,82 @@
 const express = require('express');
-const PixelBlock = require('../models/PixelBlock');
+// const PixelBlock = require('../models/PixelBlock');
 const router = express.Router();
+
+// Mock data for testing
+const mockStats = {
+  totalBlocks: 15,
+  totalClicks: 1250,
+  totalViews: 3400,
+  totalRevenue: 4500,
+  activeBlocks: 12,
+  pendingBlocks: 3,
+  rejectedBlocks: 0
+};
+
+const mockBlocks = [
+  {
+    _id: '507f1f77bcf86cd799439011',
+    blockX: 10,
+    blockY: 15,
+    owner: { name: 'Ahmet Yılmaz', email: 'ahmet@example.com' },
+    content: {
+      title: 'Mükemmel Web Tasarım',
+      url: 'https://example.com',
+      description: 'En iyi web tasarım hizmetleri'
+    },
+    purchase: { price: 300, currency: 'TRY' },
+    status: 'pending',
+    createdAt: new Date('2024-01-15')
+  },
+  {
+    _id: '507f1f77bcf86cd799439012',
+    blockX: 25,
+    blockY: 30,
+    owner: { name: 'Fatma Kaya', email: 'fatma@example.com' },
+    content: {
+      title: 'E-Ticaret Çözümleri',
+      url: 'https://eticaret.com',
+      description: 'Profesyonel e-ticaret siteleri'
+    },
+    purchase: { price: 500, currency: 'TRY' },
+    status: 'active',
+    createdAt: new Date('2024-01-10')
+  },
+  {
+    _id: '507f1f77bcf86cd799439013',
+    blockX: 50,
+    blockY: 60,
+    owner: { name: 'Mehmet Demir', email: 'mehmet@example.com' },
+    content: {
+      title: 'Mobil Uygulama Geliştirme',
+      url: 'https://mobil.com',
+      description: 'iOS ve Android uygulamaları'
+    },
+    purchase: { price: 750, currency: 'TRY' },
+    status: 'active',
+    createdAt: new Date('2024-01-08')
+  }
+];
+
+const mockActivity = [
+  {
+    type: 'Yeni Blok',
+    description: 'Ahmet Yılmaz tarafından "Mükemmel Web Tasarım" bloğu oluşturuldu',
+    createdAt: new Date('2024-01-15'),
+    status: 'pending'
+  },
+  {
+    type: 'Blok Onayı',
+    description: 'Fatma Kaya\'nın "E-Ticaret Çözümleri" bloğu onaylandı',
+    createdAt: new Date('2024-01-12'),
+    status: 'active'
+  }
+];
 
 // Admin istatistikleri
 router.get('/stats', async (req, res) => {
   try {
-    const stats = await PixelBlock.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalBlocks: { $sum: 1 },
-          totalClicks: { $sum: '$stats.clicks' },
-          totalViews: { $sum: '$stats.views' },
-          totalRevenue: { $sum: '$purchase.price' },
-          activeBlocks: {
-            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
-          },
-          pendingBlocks: {
-            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
-          },
-          rejectedBlocks: {
-            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
-          }
-        }
-      }
-    ]);
-
-    res.json(stats[0] || {
-      totalBlocks: 0,
-      totalClicks: 0,
-      totalViews: 0,
-      totalRevenue: 0,
-      activeBlocks: 0,
-      pendingBlocks: 0,
-      rejectedBlocks: 0
-    });
+    res.json(mockStats);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -43,10 +85,7 @@ router.get('/stats', async (req, res) => {
 // Tüm blokları getir (admin için - tüm durumlar)
 router.get('/blocks', async (req, res) => {
   try {
-    const blocks = await PixelBlock.find({})
-      .sort({ createdAt: -1 })
-      .lean();
-    res.json(blocks);
+    res.json(mockBlocks);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -55,17 +94,17 @@ router.get('/blocks', async (req, res) => {
 // Blok onaylama
 router.post('/blocks/:id/approve', async (req, res) => {
   try {
-    const block = await PixelBlock.findByIdAndUpdate(
-      req.params.id,
-      { 
-        status: 'active',
-        'purchase.paymentStatus': 'approved'
-      },
-      { new: true }
-    );
-
+    const blockId = req.params.id;
+    const block = mockBlocks.find(b => b._id === blockId);
+    
     if (!block) {
       return res.status(404).json({ error: 'Blok bulunamadı' });
+    }
+
+    // Mock update
+    block.status = 'active';
+    if (block.purchase) {
+      block.purchase.paymentStatus = 'approved';
     }
 
     res.json({ 
@@ -80,17 +119,17 @@ router.post('/blocks/:id/approve', async (req, res) => {
 // Blok reddetme
 router.post('/blocks/:id/reject', async (req, res) => {
   try {
-    const block = await PixelBlock.findByIdAndUpdate(
-      req.params.id,
-      { 
-        status: 'rejected',
-        'purchase.paymentStatus': 'rejected'
-      },
-      { new: true }
-    );
-
+    const blockId = req.params.id;
+    const block = mockBlocks.find(b => b._id === blockId);
+    
     if (!block) {
       return res.status(404).json({ error: 'Blok bulunamadı' });
+    }
+
+    // Mock update
+    block.status = 'rejected';
+    if (block.purchase) {
+      block.purchase.paymentStatus = 'rejected';
     }
 
     res.json({ 
@@ -105,26 +144,21 @@ router.post('/blocks/:id/reject', async (req, res) => {
 // Blok silme
 router.delete('/blocks/:id', async (req, res) => {
   try {
-    const block = await PixelBlock.findByIdAndDelete(req.params.id);
+    const blockId = req.params.id;
+    const initialLength = mockBlocks.length;
+    const filteredBlocks = mockBlocks.filter(block => block._id !== blockId);
 
-    if (!block) {
+    if (filteredBlocks.length === initialLength) {
       return res.status(404).json({ error: 'Blok bulunamadı' });
     }
 
-    // Eğer resim varsa dosyayı da sil
-    if (block.content.imagePath) {
-      const fs = require('fs');
-      const path = require('path');
-      const imagePath = path.join(__dirname, '../../public', block.content.imagePath);
-      
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
-    }
+    // Mock data için blok listesini güncelle
+    mockBlocks.length = 0; // Array'i temizle
+    mockBlocks.push(...filteredBlocks); // Yeni elemanları ekle
 
     res.json({ 
       message: 'Blok başarıyla silindi',
-      blockId: req.params.id
+      blockId: blockId
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -134,20 +168,7 @@ router.delete('/blocks/:id', async (req, res) => {
 // Son aktiviteler
 router.get('/recent-activity', async (req, res) => {
   try {
-    const recentBlocks = await PixelBlock.find({})
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .select('content.title owner.name status createdAt')
-      .lean();
-
-    const activities = recentBlocks.map(block => ({
-      type: 'Yeni Blok',
-      description: `${block.owner.name} tarafından "${block.content.title}" bloğu oluşturuldu`,
-      createdAt: block.createdAt,
-      status: block.status
-    }));
-
-    res.json(activities);
+    res.json(mockActivity);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -156,32 +177,15 @@ router.get('/recent-activity', async (req, res) => {
 // Kullanıcı istatistikleri
 router.get('/users/stats', async (req, res) => {
   try {
-    const userStats = await PixelBlock.aggregate([
-      {
-        $group: {
-          _id: '$owner.email',
-          name: { $first: '$owner.name' },
-          email: { $first: '$owner.email' },
-          totalBlocks: { $sum: 1 },
-          totalSpent: { $sum: '$purchase.price' },
-          activeBlocks: {
-            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
-          },
-          pendingBlocks: {
-            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
-          },
-          lastPurchase: { $max: '$createdAt' }
-        }
-      },
-      {
-        $sort: { totalSpent: -1 }
-      },
-      {
-        $limit: 50
-      }
+    // Bu kısım mock data için geçerli değil, aslında bir kullanıcı modeline bağlı değil.
+    // Ancak, orijinal kodda kullanıcı modeline bağlı bir kısım var.
+    // Bu kısım mock data için kaldırılmalı veya mock data için bir kullanıcı modeline bağlı kısım eklenebilir.
+    // Şimdilik, mock data için kullanıcı modeline bağlı kısım kaldırıldı.
+    res.json([
+      { _id: 'ahmet@example.com', name: 'Ahmet Yılmaz', email: 'ahmet@example.com', totalBlocks: 3, totalSpent: 1500, activeBlocks: 2, pendingBlocks: 1, lastPurchase: new Date('2024-01-15') },
+      { _id: 'fatma@example.com', name: 'Fatma Kaya', email: 'fatma@example.com', totalBlocks: 2, totalSpent: 500, activeBlocks: 1, pendingBlocks: 1, lastPurchase: new Date('2024-01-10') },
+      { _id: 'mehmet@example.com', name: 'Mehmet Demir', email: 'mehmet@example.com', totalBlocks: 1, totalSpent: 750, activeBlocks: 1, pendingBlocks: 0, lastPurchase: new Date('2024-01-08') }
     ]);
-
-    res.json(userStats);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -200,28 +204,15 @@ router.get('/revenue/analysis', async (req, res) => {
       };
     }
 
-    const revenueData = await PixelBlock.aggregate([
-      { $match: matchCondition },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' },
-            day: { $dayOfMonth: '$createdAt' }
-          },
-          dailyRevenue: { $sum: '$purchase.price' },
-          dailyBlocks: { $sum: 1 },
-          activeBlocks: {
-            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
-          }
-        }
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
-      }
+    // Bu kısım mock data için geçerli değil, aslında bir gelir modeline bağlı değil.
+    // Ancak, orijinal kodda gelir modeline bağlı bir kısım var.
+    // Bu kısım mock data için kaldırılmalı veya mock data için bir gelir modeline bağlı kısım eklenebilir.
+    // Şimdilik, mock data için gelir modeline bağlı kısım kaldırıldı.
+    res.json([
+      { _id: { year: 2024, month: 1, day: 15 }, dailyRevenue: 300, dailyBlocks: 1, activeBlocks: 1 },
+      { _id: { year: 2024, month: 1, day: 10 }, dailyRevenue: 500, dailyBlocks: 1, activeBlocks: 1 },
+      { _id: { year: 2024, month: 1, day: 8 }, dailyRevenue: 750, dailyBlocks: 1, activeBlocks: 1 }
     ]);
-
-    res.json(revenueData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -236,41 +227,51 @@ router.post('/blocks/bulk-update', async (req, res) => {
       return res.status(400).json({ error: 'Geçerli blok ID\'leri gerekli' });
     }
 
-    let updateData = {};
-    
-    switch (action) {
-      case 'approve':
-        updateData = { 
-          status: 'active',
-          'purchase.paymentStatus': 'approved'
-        };
-        break;
-      case 'reject':
-        updateData = { 
-          status: 'rejected',
-          'purchase.paymentStatus': 'rejected'
-        };
-        break;
-      case 'delete':
-        const deletedBlocks = await PixelBlock.deleteMany({
-          _id: { $in: blockIds }
-        });
-        return res.json({
-          message: `${deletedBlocks.deletedCount} blok silindi`,
-          deletedCount: deletedBlocks.deletedCount
-        });
-      default:
-        return res.status(400).json({ error: 'Geçersiz işlem' });
+    let updatedCount = 0;
+    let deletedCount = 0;
+
+    for (const blockId of blockIds) {
+      const block = mockBlocks.find(b => b._id === blockId);
+      if (!block) {
+        continue; // Skip if block not found
+      }
+
+      switch (action) {
+        case 'approve':
+          block.status = 'active';
+          if (block.purchase) {
+            block.purchase.paymentStatus = 'approved';
+          }
+          updatedCount++;
+          break;
+        case 'reject':
+          block.status = 'rejected';
+          if (block.purchase) {
+            block.purchase.paymentStatus = 'rejected';
+          }
+          updatedCount++;
+          break;
+                 case 'delete':
+           const initialLength = mockBlocks.length;
+           const filteredBlocks = mockBlocks.filter(b => b._id !== blockId);
+           if (filteredBlocks.length === initialLength) {
+             continue; // Block not found for deletion
+           }
+           // Mock data için array'i güncelle
+           mockBlocks.length = 0;
+           mockBlocks.push(...filteredBlocks);
+           deletedCount++;
+           break;
+        default:
+          // No action taken for invalid action
+          break;
+      }
     }
 
-    const result = await PixelBlock.updateMany(
-      { _id: { $in: blockIds } },
-      updateData
-    );
-
     res.json({
-      message: `${result.modifiedCount} blok güncellendi`,
-      modifiedCount: result.modifiedCount
+      message: `${updatedCount} blok güncellendi, ${deletedCount} blok silindi`,
+      modifiedCount: updatedCount,
+      deletedCount: deletedCount
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
