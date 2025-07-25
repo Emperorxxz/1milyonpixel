@@ -173,6 +173,7 @@ body {
 .pixel-block.pending {
     background-color: #f1c40f;
     opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .pixel-block.active {

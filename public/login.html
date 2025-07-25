@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Girişi - 1 Milyon Piksel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <h2>Admin Paneli Girişi</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Kullanıcı Adı</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Parola</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" id="loginButton" class="btn btn-primary">Giriş Yap</button>
+            </form>
+            <p id="errorMessage" class="error-message"></p>
+        </div>
+    </div>
+    <script src="login.js"></script>
+</body>
+</html>

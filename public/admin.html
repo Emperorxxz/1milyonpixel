@@ -180,15 +180,17 @@
 <body>
     <div class="admin-container">
         <div class="admin-header">
-            <h1>🔧 Admin Paneli</h1>
-            <p>1 Milyon Pixel Yönetim Sistemi</p>
+            <div class="container">
+                <h1>🔧 Admin Paneli</h1>
+                <p>1 Milyon Pixel Yönetim Sistemi</p>
+            </div>
         </div>
         
         <div class="admin-tabs">
-            <button class="admin-tab active" onclick="showTab('dashboard')">📊 Dashboard</button>
-            <button class="admin-tab" onclick="showTab('blocks')">🎯 Blok Yönetimi</button>
-            <button class="admin-tab" onclick="showTab('users')">👥 Kullanıcılar</button>
-            <button class="admin-tab" onclick="showTab('settings')">⚙️ Ayarlar</button>
+            <button class="admin-tab active" data-tab="dashboard">📊 Dashboard</button>
+            <button class="admin-tab" data-tab="blocks">🎯 Blok Yönetimi</button>
+            <button class="admin-tab" data-tab="users">👥 Kullanıcılar</button>
+            <button class="admin-tab" data-tab="settings">⚙️ Ayarlar</button>
         </div>
         
         <div class="admin-content">
@@ -217,7 +219,7 @@
                         <option value="active">Aktif</option>
                         <option value="rejected">Reddedilen</option>
                     </select>
-                    <button class="btn btn-primary" onclick="loadBlocks()">🔄 Yenile</button>
+                    <button class="btn btn-primary" onclick="adminPanel.loadBlocks()">🔄 Yenile</button>
                 </div>
                 
                 <table class="blocks-table" id="blocksTable">

@@ -7,6 +7,7 @@ class PixelBlockApp {
         this.zoomLevel = 1;
         this.blocks = new Map();
         this.tooltip = null;
+        this.socket = null; // Socket.IO nesnesi
         
         this.init();
     }
@@ -15,6 +16,7 @@ class PixelBlockApp {
         this.showLoading(true);
         this.createGrid();
         this.setupEventListeners();
+        this.setupSocket(); // Socket'i başlat
         await this.loadBlocks();
         await this.loadStats();
         this.showLoading(false);
@@ -60,9 +62,32 @@ class PixelBlockApp {
         });
     }
 
+    setupSocket() {
+        this.socket = io();
+
+        this.socket.on('connect', () => {
+            console.log('Socket.IO sunucusuna bağlandı!');
+        });
+
+        // Başka bir kullanıcıdan gelen piksel güncellemesini dinle
+        this.socket.on('update_pixel', (data) => {
+            console.log('Gelen piksel güncellemesi:', data);
+            this.updatePixelOnGrid(data);
+        });
+    }
+
+    updatePixelOnGrid(data) {
+        const element = document.querySelector(`[data-x="${data.x}"][data-y="${data.y}"]`);
+        if (element) {
+            element.style.backgroundColor = data.color;
+            // Gerekirse diğer sınıfları ve verileri de güncelle
+            element.classList.add('updated-by-socket');
+        }
+    }
+
     async loadBlocks() {
         try {
-            const response = await fetch('/api/blocks');
+            const response = await fetch('/api/blocks/all-for-grid');
             if (response.ok) {
                 const blocks = await response.json();
                 this.renderBlocks(blocks);
@@ -85,6 +110,14 @@ class PixelBlockApp {
     }
 
     renderBlocks(blocks) {
+        // Clear existing styles first
+        document.querySelectorAll('.pixel-block').forEach(el => {
+            el.className = 'pixel-block';
+            el.style.backgroundColor = '';
+            el.style.backgroundImage = '';
+        });
+        this.blocks.clear();
+
         blocks.forEach(block => {
             const element = document.querySelector(`[data-x="${block.blockX}"][data-y="${block.blockY}"]`);
             if (element) {
@@ -92,14 +125,12 @@ class PixelBlockApp {
                 
                 if (block.status === 'active') {
                     element.style.backgroundColor = block.content.backgroundColor;
-                    
                     if (block.content.imagePath) {
                         element.style.backgroundImage = `url(${block.content.imagePath})`;
-                        element.classList.add('active');
                     }
                 }
                 
-                // Blok bilgilerini sakla
+                // Store full block info for tooltips and clicks
                 this.blocks.set(`${block.blockX}-${block.blockY}`, block);
             }
         });
@@ -115,16 +146,12 @@ class PixelBlockApp {
         const blockId = `${x}-${y}`;
         const block = this.blocks.get(blockId);
         
-        if (block && block.status === 'active') {
-            // Aktif blok - tıklama kaydı ve yönlendirme
-            this.recordClick(x, y, block.content.url);
+        if (block) {
+            // Block is either 'active' or 'pending'
             this.showBlockInfo(block);
-        } else if (!block) {
+        } else {
             // Müsait blok - seçim
             this.selectBlock(x, y, event);
-        } else {
-            // Pending/rejected blok
-            this.showBlockInfo(block);
         }
     }
 
@@ -289,37 +316,70 @@ class PixelBlockApp {
     async handlePurchase(event) {
         event.preventDefault();
         
-        const formData = new FormData(event.target);
-        
-        // Validation
-        if (!formData.get('blockX') || !formData.get('blockY')) {
+        if (this.selectedBlocks.size === 0) {
             alert('Lütfen bir blok seçin!');
             return;
         }
-        
+
         this.showLoading(true);
-        
-        try {
-            const response = await fetch('/api/blocks/purchase', {
+
+        const purchasePromises = [];
+        const originalForm = document.getElementById('purchaseForm');
+
+        for (const blockId of this.selectedBlocks) {
+            const [x, y] = blockId.split('-');
+            
+            // Create a new FormData for each block
+            const formData = new FormData(originalForm);
+            formData.set('blockX', x);
+            formData.set('blockY', y);
+            formData.set('price', 300); // Assuming a fixed price per block
+
+            const promise = fetch('/api/blocks/purchase', {
                 method: 'POST',
                 body: formData
-            });
+            }).then(response => response.json());
+
+            purchasePromises.push(promise);
+        }
+
+        try {
+            const results = await Promise.all(purchasePromises);
             
-            const result = await response.json();
-            
-            if (response.ok) {
-                alert('Satın alma talebiniz başarıyla gönderildi! Onay sürecinden sonra bloğunuz aktif hale gelecektir.');
-                this.hidePurchaseForm();
-                await this.loadBlocks();
-                await this.loadStats();
-            } else {
-                alert('Hata: ' + result.error);
+            const successfulPurchases = results.filter(r => !r.error);
+            const failedPurchases = results.filter(r => r.error);
+
+            let alertMessage = '';
+            if (successfulPurchases.length > 0) {
+                alertMessage += `${successfulPurchases.length} blok için başvurunuz başarıyla alındı. Admin onayı sonrası size e-posta ile bilgi verilecektir.\n`;
+                // Update UI for successful purchases
+                successfulPurchases.forEach(result => {
+                    const blockElement = document.querySelector(`[data-block-id="${result.blockX}-${result.blockY}"]`);
+                    if (blockElement) {
+                        blockElement.classList.add('pending');
+                        blockElement.classList.remove('selected');
+                    }
+                });
             }
+
+            if (failedPurchases.length > 0) {
+                const failedBlocks = failedPurchases.map(r => r.error).join('\n - ');
+                alertMessage += `\n${failedPurchases.length} blok için hata oluştu:\n - ${failedBlocks}`;
+            }
+
+            alert(alertMessage);
+
+            if (successfulPurchases.length > 0) {
+                this.hidePurchaseForm();
+                await this.loadStats();
+            }
+            
         } catch (error) {
             console.error('Satın alma hatası:', error);
             alert('Bir hata oluştu. Lütfen tekrar deneyin.');
         } finally {
             this.showLoading(false);
+            this.clearSelection();
         }
     }
 

@@ -24,12 +24,13 @@ const pixelBlockSchema = new mongoose.Schema({
   purchase: {
     price: { type: Number, required: true, min: 1 },
     currency: { type: String, default: 'TRY', enum: ['USD', 'EUR', 'TRY'] },
+    paymentMethod: { type: String, default: 'IBAN' },
     paymentStatus: { 
       type: String, 
-      enum: ['pending', 'paid', 'approved', 'rejected'], 
-      default: 'pending' 
+      enum: ['awaiting_payment', 'paid', 'refunded'], 
+      default: 'awaiting_payment' 
     },
-    paymentId: String,
+    paymentId: String, // Banka transferi için dekont no veya referans kodu olabilir
     purchaseDate: { type: Date, default: Date.now }
   },
   
@@ -42,7 +43,7 @@ const pixelBlockSchema = new mongoose.Schema({
   // Durum
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'active'],
+    enum: ['pending', 'approved', 'rejected', 'active', 'awaiting_payment'], // 'approved' durumu ödeme bekliyor olarak kullanılabilir
     default: 'pending'
   },
   

@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 
+// Yetkilendirme Middleware'i (admin rotaları için)
+const protect = require('../middleware/protect'); // protect middleware'ini import et
+
 // Multer konfigürasyonu - resim yükleme
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -38,8 +41,20 @@ const upload = multer({
   }
 });
 
-// Tüm aktif blokları getir
-router.get('/', async (req, res) => {
+// Grid için tüm görünür blokları (aktif ve onay bekleyen) getir
+router.get('/all-for-grid', async (req, res) => {
+    try {
+        const blocks = await PixelBlock.find({ status: { $in: ['active', 'pending'] } })
+            .select('blockX blockY status content.backgroundColor content.imagePath')
+            .lean();
+        res.json(blocks);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Tüm aktif blokları getir (Admin korumalı)
+router.get('/', protect, async (req, res) => {
   try {
     const blocks = await PixelBlock.find({ status: 'active' })
       .select('-owner.email -owner.phone -purchase.paymentId')
@@ -50,8 +65,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Belirli bir bloğun detaylarını getir
-router.get('/:blockX/:blockY', async (req, res) => {
+// Belirli bir bloğun detaylarını getir (Admin korumalı)
+router.get('/:blockX/:blockY', protect, async (req, res) => {
   try {
     const { blockX, blockY } = req.params;
     const block = await PixelBlock.findOne({ 
@@ -76,7 +91,7 @@ router.get('/:blockX/:blockY', async (req, res) => {
   }
 });
 
-// Yeni blok satın alma
+// Yeni blok başvurusu oluşturma
 router.post('/purchase', upload.single('image'), async (req, res) => {
   try {
     const {
@@ -84,17 +99,17 @@ router.post('/purchase', upload.single('image'), async (req, res) => {
       title, url, description, backgroundColor, price
     } = req.body;
 
-    // Blok zaten satılmış mı kontrol et
+    // Blok zaten satılmış mı veya onay bekliyor mu kontrol et
     const existingBlock = await PixelBlock.findOne({
       blockX: parseInt(blockX),
       blockY: parseInt(blockY)
     });
 
     if (existingBlock) {
-      return res.status(400).json({ error: 'Bu blok zaten satılmış' });
+      return res.status(400).json({ error: 'Bu blok zaten dolu veya rezerve edilmiş.' });
     }
 
-    // Yeni blok oluştur
+    // Yeni blok başvurusu oluştur
     const newBlock = new PixelBlock({
       blockX: parseInt(blockX),
       blockY: parseInt(blockY),
@@ -112,14 +127,17 @@ router.post('/purchase', upload.single('image'), async (req, res) => {
       purchase: {
         price: parseFloat(price) || 300,
         currency: 'TRY',
-        paymentStatus: 'pending' // Gerçek ödeme sistemi entegrasyonu için
-      }
+        paymentStatus: 'awaiting_payment'
+      },
+      status: 'pending' // Admin onayı için bekliyor
     });
 
     await newBlock.save();
     
+    // TODO: Admin'e bildirim e-postası gönderilebilir.
+
     res.status(201).json({
-      message: 'Blok satın alma talebi oluşturuldu. Onay bekliyor.',
+      message: 'Başvurunuz başarıyla alındı. Admin onayı sonrası size e-posta ile bilgi verilecektir.',
       blockId: newBlock._id
     });
   } catch (err) {
@@ -127,8 +145,8 @@ router.post('/purchase', upload.single('image'), async (req, res) => {
   }
 });
 
-// Blok tıklama (istatistik)
-router.post('/:blockX/:blockY/click', async (req, res) => {
+// Blok tıklama (istatistik) (Admin korumalı)
+router.post('/:blockX/:blockY/click', protect, async (req, res) => {
   try {
     const { blockX, blockY } = req.params;
     
@@ -156,8 +174,8 @@ router.post('/:blockX/:blockY/click', async (req, res) => {
   }
 });
 
-// Müsait blokları kontrol et
-router.get('/available/check', async (req, res) => {
+// Müsait blokları kontrol et (Admin korumalı)
+router.get('/available/check', protect, async (req, res) => {
   try {
     const occupiedBlocks = await PixelBlock.find({})
       .select('blockX blockY status')
@@ -180,8 +198,8 @@ router.get('/available/check', async (req, res) => {
   }
 });
 
-// İstatistikler
-router.get('/stats/summary', async (req, res) => {
+// İstatistikler (Admin korumalı)
+router.get('/stats/summary', protect, async (req, res) => {
   try {
     const stats = await PixelBlock.aggregate([
       {
@@ -215,3 +233,31 @@ router.get('/stats/summary', async (req, res) => {
 });
 
 module.exports = router;
+
+router.delete('/:blockX/:blockY', protect, async (req, res) => {
+    try {
+        const { blockX, blockY } = req.params;
+        const result = await PixelBlock.deleteOne({ blockX, blockY });
+        if (result.deletedCount === 1) {
+            res.json({ message: 'Blok silindi' });
+        } else {
+            res.status(404).json({ error: 'Blok bulunamadı' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/admin/:id', protect, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deleted = await PixelBlock.findByIdAndDelete(id);
+        if (deleted) {
+            res.json({ message: 'Blok silindi' });
+        } else {
+            res.status(404).json({ error: 'Blok bulunamadı' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
